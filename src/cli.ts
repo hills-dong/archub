@@ -14,6 +14,7 @@ import { GitRepo } from './git/repo.js'
 import { writeSnapshot } from './snapshot/store.js'
 import { DiffService, WORKING } from './diff/service.js'
 import { toMarkdown } from './diff/report.js'
+import { syncCodegraph } from './codegraph/sync.js'
 
 const program = new Command()
 program
@@ -60,7 +61,13 @@ program
   .command('snapshot')
   .description('Snapshot the current architecture graph, keyed by git HEAD sha')
   .option('-p, --project <path>', 'project root', process.cwd())
-  .action(async (opts: { project: string }) => {
+  .option('--no-sync', 'skip `codegraph sync` before snapshotting')
+  .action(async (opts: { project: string; sync: boolean }) => {
+    if (opts.sync) {
+      const r = syncCodegraph(opts.project)
+      if (r.ok) console.log('codegraph sync: done')
+      else console.error(`codegraph sync failed — snapshot may be stale: ${r.message}`)
+    }
     const db = openCodegraphDb(opts.project)
     const graph = loadL0Graph(db)
     db.close()

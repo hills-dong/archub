@@ -79,11 +79,12 @@ node dist/cli.js graph --project /path/to/repo --level function --file src/main.
 
 ## CLI：`archub snapshot`（M3 快照）
 
-记录当前工作区架构图的前向快照，以 git HEAD SHA 为 key：
+记录当前工作区架构图的前向快照，以 git HEAD SHA 为 key。默认先运行 `codegraph sync` 确保快照反映最新代码，传 `--no-sync` 可跳过：
 
 ```bash
 node dist/cli.js snapshot --project /path/to/repo
 # 输出：snapshot <sha> saved (N nodes, M edges)
+node dist/cli.js snapshot --project /path/to/repo --no-sync   # 跳过 codegraph sync
 ```
 
 > **前向快照语义**：快照只能向前记录（通过 `archub snapshot` 或 post-commit hook）。
