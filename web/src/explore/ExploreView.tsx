@@ -34,7 +34,7 @@ export function ExploreView() {
   }, [])
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <header style={{ borderBottom: '1px solid #ddd' }}>
         <SearchBox onPick={onPickHit} />
         <Breadcrumb crumbs={crumbs} onJump={(i) => { setCrumbs((c) => c.slice(0, i + 1)); setDetail(null) }} />
