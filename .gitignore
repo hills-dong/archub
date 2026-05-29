@@ -31,3 +31,4 @@ pnpm-debug.log*
 # Web app build artefacts
 web/node_modules/
 web/dist/
+web/test-results/
