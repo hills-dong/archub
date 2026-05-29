@@ -1,5 +1,7 @@
 # codegraph SQLite Schema
 
+> **M1 Go/No-Go verdict (2026-05-29):** Rust extraction is GO (see `docs/verification-notes.md`); `nodes` and `edges` tables are fully identified with column mappings written below; the full architecture graph can be exported in one shot by reading these two tables directly — no per-symbol codegraph CLI queries are needed.
+
 Empirically documented from the real lifly codegraph database.  
 **codegraph version:** 0.9.7 (see `docs/verification-notes.md`)  
 **DB path (per project):** `<project-root>/.codegraph/codegraph.db`  
@@ -179,3 +181,98 @@ This means nodes survive file renames only if re-indexed; hash stability across 
 | `imports` | A file/symbol imports another module/symbol |
 | `references` | A symbol references another (type reference, field access, etc.) |
 | `instantiates` | A symbol instantiates a class/struct (1 occurrence in lifly) |
+
+---
+
+## M2 适配器输入 (M2 Adapter Input)
+
+This section defines the exact SQL and column mappings the M2 schema adapter will use to export the full architecture graph from codegraph's SQLite database in one shot.
+
+### Node export SQL
+
+```sql
+SELECT
+  id,
+  kind,
+  name,
+  qualified_name,
+  file_path,
+  language,
+  start_line,
+  end_line,
+  start_column,
+  end_column,
+  docstring,
+  signature,
+  visibility,
+  is_exported,
+  is_async,
+  is_static,
+  is_abstract,
+  decorators,
+  type_parameters,
+  updated_at
+FROM nodes
+```
+
+All 20 columns are exported. `id` is the join key for edges. The remaining columns provide symbol metadata for the archub graph.
+
+### Edge export SQL
+
+```sql
+SELECT
+  id,
+  source,
+  target,
+  kind,
+  metadata,
+  line,
+  col,
+  provenance
+FROM edges
+```
+
+All 8 columns are exported. `source` and `target` are 100% clean foreign keys to `nodes.id` (empirically verified on lifly: all 1773 edges resolve, zero dangling). No null-handling is required when joining edges to nodes.
+
+### archub stable node ID — source column mapping
+
+archub assigns each node a stable ID of the form `language:file_path:kind:qualified_name[:start_line]` (see disambiguation note below). The columns that compose this ID are:
+
+| archub stable ID component | source column |
+|----------------------------|--------------|
+| `language` | `nodes.language` |
+| `file_path` | `nodes.file_path` |
+| `kind` | `nodes.kind` |
+| `qualified_name` | `nodes.qualified_name` |
+| `start_line` *(disambiguation suffix — see below)* | `nodes.start_line` |
+
+This is distinct from codegraph's own `nodes.id` (a content hash for symbols, a file path for `file` nodes). codegraph's ID is not stable across renames or codegraph version upgrades; archub's composite key is human-readable and version-independent.
+
+### Edge → node foreign key relationship
+
+```
+edges.source  →  nodes.id   (the originating node)
+edges.target  →  nodes.id   (the destination node)
+```
+
+Both endpoints are verified clean (lifly: 1773/1773 edges, both endpoints, zero dangling).
+
+### Stable ID uniqueness — empirical finding (lifly, 817 nodes)
+
+**The 4-component key `language:file_path:kind:qualified_name` is NOT unique on lifly.**
+
+- **33 collision groups, 85 nodes involved** (out of 817 total)
+- All collisions are in **Rust `import` nodes**: multiple `use axum::...` statements in the same file all share `language=rust`, the same `file_path`, `kind=import`, and the same top-level crate name as `qualified_name` (e.g. `"axum"`, `"std"`, `"argon2"`).
+- Representative examples:
+  - `rust:server/src/data/handlers.rs:import:"axum"` — **7 rows** (7 separate `use axum::...` lines, start_lines 1–7)
+  - `rust:server/src/common/config.rs:import:"std"` — **4 rows** (start_lines 1–4)
+
+**Recommendation: use a 5-component stable ID for M2:**
+
+```
+language:file_path:kind:qualified_name:start_line
+```
+
+Adding `start_line` fully resolves all 33 collision groups (verified: 0 remaining collisions after adding `start_line`). The disambiguated key `language:file_path:kind:qualified_name:start_line` is unique across all 817 nodes in lifly.
+
+For non-import nodes (functions, structs, methods, etc.) `start_line` is almost always unique within a file for a given kind+qualified_name tuple, but including it unconditionally keeps the ID format consistent and future-proof.
