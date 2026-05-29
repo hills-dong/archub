@@ -1,3 +1,5 @@
+import { ExploreView } from './explore/ExploreView'
+
 export function App() {
-  return <div data-testid="app-root">archub</div>
+  return <ExploreView />
 }
