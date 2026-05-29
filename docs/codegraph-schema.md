@@ -162,7 +162,7 @@ WHERE e.kind = 'calls'
   AND n_src.language = 'typescript'
 ```
 
-This is safe because `source`/`target` are node IDs (not names), so there are no cross-language collisions.
+However, the edges table itself is NOT free of false positives: codegraph populates `calls`/`references` edges by resolving bare symbol names, which produces cross-language collisions (e.g. a Rust function referencing a Swift enum that shares the same name) and ambiguous-name matches (e.g. dozens of methods all named `new`). archub's adapter filters these out: it drops any edge where source and target have different `language` values (cross-language drop), and drops `calls`/`references` edges whose target name is shared by `>= AMBIGUOUS_NAME_MIN_DEFS` retained nodes (ambiguous-name drop). `instantiates` edges are exempt from the ambiguous-name filter.
 
 ### Node ID format
 
