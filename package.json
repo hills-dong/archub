@@ -1,0 +1,32 @@
+{
+  "name": "archub",
+  "version": "0.1.0",
+  "description": "Real-time code architecture visualization + per-commit architecture diff review",
+  "type": "module",
+  "bin": {
+    "archub": "./dist/cli.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/cli.ts",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.10.0",
+    "commander": "^14.0.3"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^25.9.1",
+    "tsx": "^4.22.3",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.7"
+  }
+}
