@@ -1,4 +1,4 @@
-import type { GraphResponse, Level, NodeDetail, SearchHit } from './types'
+import type { GraphResponse, Level, NodeDetail, SearchHit, RefInfo, GraphDiff } from './types'
 
 async function getJson<T>(url: string): Promise<T> {
   const res = await fetch(url)
@@ -18,4 +18,15 @@ export function fetchNode(id: string): Promise<NodeDetail> {
 
 export function search(q: string): Promise<SearchHit[]> {
   return getJson(`/api/search?q=${encodeURIComponent(q)}`)
+}
+
+export function fetchRefs(): Promise<RefInfo> {
+  return getJson('/api/refs')
+}
+
+export function fetchDiff(base: string, head: string, level: Level, scope: string | null): Promise<GraphDiff> {
+  const params = new URLSearchParams({ base, head, level })
+  if (level === 'file' && scope) params.set('module', scope)
+  if (level === 'function' && scope) params.set('file', scope)
+  return getJson(`/api/diff?${params.toString()}`)
 }
